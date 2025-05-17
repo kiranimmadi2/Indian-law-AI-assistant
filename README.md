@@ -26,7 +26,6 @@ An AI-powered assistant for analyzing legal documents in multiple Indian languag
 - Kannada
 - Malayalam
 - Punjabi
-- Odia
 
 ## Setup
 
