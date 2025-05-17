@@ -1,4 +1,4 @@
-# Indian Legal AI Assistant
+# Indian Law AI Assistant
 
 ![image](https://github.com/user-attachments/assets/e6cccb0e-5db3-473d-b47d-46fa602b4533)
 
