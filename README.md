@@ -1,5 +1,8 @@
 # Indian Legal AI Assistant
 
+![image](https://github.com/user-attachments/assets/e6cccb0e-5db3-473d-b47d-46fa602b4533)
+
+
 An AI-powered assistant for analyzing legal documents in multiple Indian languages.
 
 ## Features
