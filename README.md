@@ -11,7 +11,6 @@ An AI-powered assistant for analyzing legal documents in multiple Indian languag
 - Automatic language detection
 - Translation between multiple Indian languages
 - Legal document analysis with case summaries
-- Win probability estimation
 - Support for both OpenAI and Google Gemini AI models
 
 ## Supported Languages
