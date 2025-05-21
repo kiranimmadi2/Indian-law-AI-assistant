@@ -19,12 +19,12 @@ class LegalAnalyzer:
             last_part = text[-max_length//2:]
             text = first_part + "\n...[Content truncated due to length]...\n" + last_part
         
-        prompt = """You are an Indian legal advisor. Analyze the provided legal document and provide a comprehensive analysis with the following sections:
+        prompt = """You are an Indian legal advisor. Analyze the provided legal document and provide a comprehensive analysis with the following sections. Please ensure the Win Probability is clearly and consistently formatted.
 
 1. 🧾 Case Summary: Explain what the case is about in simple language.
 2. 📜 Relevant Laws: List the relevant laws, sections, and precedents that apply to this case.
 3. 💡 Legal Advice: Provide practical advice for a common person dealing with this legal matter.
-4. 📈 Win Probability: Estimate the chance of winning this case (as a percentage) based on the information provided.
+4. 📈 Win Probability: Estimate the chance of winning this case. Present this as: "Win Probability: [X]%". For example: "Win Probability: 65%". If you cannot determine a probability, state "Win Probability: Not determinable".
 
 Note: The document may be truncated due to length. Focus on analyzing the visible portions."""
         
@@ -51,4 +51,5 @@ Note: The document may be truncated due to length. Focus on analyzing the visibl
             
         except Exception as e:
             print(f"Legal analysis error: {str(e)}")
-            return f"Error analyzing document: {str(e)}"
+            # Instead of returning f"Error analyzing document: {str(e)}"
+            raise RuntimeError(f"Legal analysis failed. AI service may be unavailable or encountered an issue: {str(e)}") from e

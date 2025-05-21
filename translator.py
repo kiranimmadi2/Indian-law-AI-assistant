@@ -53,8 +53,9 @@ class Translator:
                 return response.text
                 
         except Exception as e:
-            print(f"Translation error: {str(e)}")
-            return text  # Return original text if translation fails
+            print(f"Translation error ({source_lang_name} to English): {str(e)}")
+            # Instead of returning text:
+            raise RuntimeError(f"Translation from {source_lang_name} to English failed. AI service may be unavailable or encountered an issue.") from e
     
     def translate_to_language(self, text, source_lang, target_lang, selected_model="OpenAI (GPT-3.5)"):
         """Translate text from source language to target language using selected AI model"""
@@ -104,5 +105,6 @@ class Translator:
                 return response.text
                 
         except Exception as e:
-            print(f"Translation error: {str(e)}")
-            return text  # Return original text if translation fails
+            print(f"Translation error ({source_lang_name} to {target_lang_name}): {str(e)}")
+            # Instead of returning text:
+            raise RuntimeError(f"Translation from {source_lang_name} to {target_lang_name} failed. AI service may be unavailable or encountered an issue.") from e

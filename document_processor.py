@@ -17,8 +17,27 @@ class DocumentProcessor:
         
         # Extract text based on file type
         if file_extension in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-            # For images, use AI to extract text and detect language
-            return self._process_image_with_ai(file_path, selected_model)
+            extracted_text, detected_lang_from_img = self._process_image_with_ai(file_path, selected_model)
+            if detected_lang_from_img == "err_img_proc" or extracted_text is None:
+                # Image processing failed
+                raise ValueError("Failed to extract text from image. The image might be corrupted or the AI vision model could not process it.")
+            
+            # The _process_image_with_ai now returns a cleaned language code.
+            # We still need a final mapping to ensure consistency and handle any variations.
+            img_lang_mapping = {
+                'english': 'en', 'en': 'en', 'hindi': 'hi', 'hi': 'hi', 'tamil': 'ta', 'ta': 'ta',
+                'telugu': 'te', 'te': 'te', 'bengali': 'bn', 'bn': 'bn', 'marathi': 'mr', 'mr': 'mr',
+                'gujarati': 'gu', 'gu': 'gu', 'kannada': 'kn', 'kn': 'kn', 'malayalam': 'ml', 'ml': 'ml',
+                'punjabi': 'pa', 'pa': 'pa', 'odia': 'or', 'oriya': 'or', 'or': 'or'
+            }
+            # Clean the language code received from image processing
+            import re
+            cleaned_img_lang_code = re.sub(r'[^a-z]', '', detected_lang_from_img.lower())
+            final_image_lang_code = img_lang_mapping.get(cleaned_img_lang_code, 'en') # Default to 'en'
+
+            print(f"Language from image processing (raw): '{detected_lang_from_img}', Cleaned: '{cleaned_img_lang_code}', Mapped: '{final_image_lang_code}'")
+            return extracted_text, final_image_lang_code
+
         elif file_extension == '.pdf':
             text = self._extract_from_pdf(file_path)
         elif file_extension in ['.doc', '.docx']:
@@ -26,8 +45,14 @@ class DocumentProcessor:
         else:
             raise ValueError(f"Unsupported file format: {file_extension}")
         
-        # Detect language using AI
-        lang = self._detect_language_with_ai(text, selected_model)
+        # For non-image files, proceed with language detection using _detect_language_with_ai
+        # Ensure text exists and is substantial enough for detection
+        if not text or len(text.strip()) < 10: # Minimal length for detection
+            print("Text too short or empty for AI language detection, defaulting to 'en'.")
+            return text, "en"
+            
+        text_sample_for_detection = text[:2000] # Use a sample for detection
+        lang = self._detect_language_with_ai(text_sample_for_detection, selected_model)
         
         return text, lang
     
@@ -80,42 +105,47 @@ class DocumentProcessor:
                 ])
                 detected_lang = response.text.strip().lower()
             
-            # Clean up the response to ensure we get just the language code
-            # Remove any non-alphanumeric characters
+            original_ai_response = detected_lang # Store for logging
             import re
-            detected_lang = re.sub(r'[^a-z]', '', detected_lang)
-            
-            # Map to our supported language codes
+            # Standardize to lowercase and remove non-alpha characters.
+            detected_lang_cleaned = re.sub(r'[^a-z]', '', detected_lang.lower())
+
+            # Comprehensive mapping including common names and codes
             lang_mapping = {
-                'hindi': 'hi',
-                'tamil': 'ta',
-                'telugu': 'te',
-                'bengali': 'bn',
-                'marathi': 'mr',
-                'gujarati': 'gu',
-                'kannada': 'kn',
-                'malayalam': 'ml',
-                'punjabi': 'pa',
-                'odia': 'or',
-                'oriya': 'or',
-                'english': 'en',
-                'hi': 'hi',
-                'ta': 'ta',
-                'te': 'te',
-                'bn': 'bn',
-                'mr': 'mr',
-                'gu': 'gu',
-                'kn': 'kn',
-                'ml': 'ml',
-                'pa': 'pa',
-                'or': 'or',
-                'en': 'en'
+                'english': 'en', 'en': 'en',
+                'hindi': 'hi', 'hi': 'hi',
+                'tamil': 'ta', 'ta': 'ta',
+                'telugu': 'te', 'te': 'te',
+                'bengali': 'bn', 'bn': 'bn',
+                'marathi': 'mr', 'mr': 'mr',
+                'gujarati': 'gu', 'gu': 'gu',
+                'kannada': 'kn', 'kn': 'kn',
+                'malayalam': 'ml', 'ml': 'ml',
+                'punjabi': 'pa', 'pa': 'pa',
+                'odia': 'or', 'oriya': 'or', 'or': 'or'
             }
             
-            # Print for debugging
-            print(f"Raw detected language: {detected_lang}")
+            final_lang_code = 'en' # Default
+
+            if detected_lang_cleaned in lang_mapping:
+                final_lang_code = lang_mapping[detected_lang_cleaned]
+            elif len(detected_lang_cleaned) >= 2 and len(detected_lang_cleaned) <= 7: # e.g. 'french' is 6, 'english' is 7
+                # This case handles if AI returns a language name not in our specific map,
+                # or a valid short code that's not explicitly listed (e.g. 'fr' if prompt allowed it).
+                # For this project, we primarily care about mapping to our supported codes.
+                # If it's not in lang_mapping, it's effectively unsupported for direct mapping.
+                print(f"INFO: Language detection AI returned a code or name '{detected_lang_cleaned}' not in the primary supported list. Raw: '{original_ai_response}'. Defaulting to 'en'.")
+                final_lang_code = 'en' # Default to 'en' as it's not in our explicit supported list
+            else:
+                # Handles very short, very long, or empty strings after cleaning
+                print(f"WARNING: Language detection AI returned an unexpected format. Raw response: '{original_ai_response}', Cleaned: '{detected_lang_cleaned}'. Defaulting to 'en'.")
+                final_lang_code = 'en'
+
+            print(f"Raw detected language from AI (text): {original_ai_response}")
+            print(f"Cleaned AI language response (text): {detected_lang_cleaned}")
+            print(f"Final detected language code after mapping (text): {final_lang_code}")
+            return final_lang_code
             
-            return lang_mapping.get(detected_lang, 'en')
         except Exception as e:
             print(f"Language detection error: {str(e)}")
             return 'en'  # Default to English if detection fails
@@ -149,10 +179,9 @@ class DocumentProcessor:
                     # Parse the response
                     result = response.choices[0].message.content.strip()
                 except Exception as e:
-                    print(f"OpenAI vision error: {str(e)}")
-                    # Fallback to gpt-3.5-turbo if vision model fails
-                    print("Falling back to text-only model for language detection")
-                    return "", "en"
+                    print(f"ERROR: OpenAI vision model (gpt-4-vision-preview) failed: {str(e)}")
+                    print("Image processing failed. No text could be extracted via vision model.")
+                    return None, "err_img_proc" # Signal error
                 
             elif model_type == "gemini":
                 # Use Gemini for image processing
@@ -164,55 +193,33 @@ class DocumentProcessor:
                     ])
                     result = response.text.strip()
                 except Exception as e:
-                    print(f"Gemini vision error: {str(e)}")
-                    return "", "en"
+                    print(f"ERROR: Gemini vision model (gemini-pro-vision) failed: {str(e)}")
+                    print("Image processing failed. No text could be extracted via vision model.")
+                    return None, "err_img_proc" # Signal error
             
             # Extract language code and text
             lines = result.split('\n', 1)
             if len(lines) >= 2:
-                lang_code = lines[0].strip().lower()
+                raw_lang_code_from_vision = lines[0].strip() # Keep original case/format for logging
                 extracted_text = lines[1].strip()
                 
-                # Clean up language code
+                # Clean up language code (lowercase, remove non-alpha)
                 import re
-                lang_code = re.sub(r'[^a-z]', '', lang_code)
+                # Basic cleaning for the code returned by vision model.
+                # The main mapping logic in extract_text_and_detect_language will further refine this.
+                lang_code_cleaned_from_vision = re.sub(r'[^a-z]', '', raw_lang_code_from_vision.lower())
+
+                print(f"Raw language output from vision model: '{raw_lang_code_from_vision}', Cleaned: '{lang_code_cleaned_from_vision}'")
                 
-                # Map language names/codes to our codes
-                lang_mapping = {
-                    'hindi': 'hi',
-                    'tamil': 'ta',
-                    'telugu': 'te',
-                    'bengali': 'bn',
-                    'marathi': 'mr',
-                    'gujarati': 'gu',
-                    'kannada': 'kn',
-                    'malayalam': 'ml',
-                    'punjabi': 'pa',
-                    'odia': 'or',
-                    'oriya': 'or',
-                    'english': 'en',
-                    'hi': 'hi',
-                    'ta': 'ta',
-                    'te': 'te',
-                    'bn': 'bn',
-                    'mr': 'mr',
-                    'gu': 'gu',
-                    'kn': 'kn',
-                    'ml': 'ml',
-                    'pa': 'pa',
-                    'or': 'or',
-                    'en': 'en'
-                }
-                
-                # Print for debugging
-                print(f"Raw detected language from image: {lang_code}")
-                
-                lang_code = lang_mapping.get(lang_code, 'en')
-                return extracted_text, lang_code
+                # Return the cleaned code; the caller (extract_text_and_detect_language) will perform the final robust mapping.
+                return extracted_text, lang_code_cleaned_from_vision
             else:
-                return result, "en"  # Default to English if format is unexpected
+                # If the vision model output is not as expected (e.g., just text without lang code line)
+                print(f"WARNING: Vision model output format unexpected. Raw output: '{result[:200]}...'. Treating all as text, language will be an unverified 'en' or similar code.")
+                # Return the full result as text, and a placeholder language code that extract_text_and_detect_language can map.
+                return result, "en" # Defaulting to 'en' if format is bad.
                 
         except Exception as e:
-            print(f"Image processing error: {str(e)}")
-            # Return empty text with English as default
-            return "", "en"
+            print(f"Image processing error during content parsing: {str(e)}")
+            # Return None and err_img_proc to signal failure clearly
+            return None, "err_img_proc"
